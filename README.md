@@ -32,7 +32,7 @@ Um servidor web simples construído com Flask para compartilhar arquivos facilme
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/seu-usuario/nome-do-seu-repositorio.git](https://github.com/rafaelmarinatoassis/flask-lan-file-sharer.git)
+    git clone https://github.com/rafaelmarinatoassis/flask-lan-file-sharer.git
     cd flask-lan-file-sharer
     ```
 
