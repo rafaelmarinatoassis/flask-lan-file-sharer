@@ -33,7 +33,7 @@ Um servidor web simples construído com Flask para compartilhar arquivos facilme
 1.  **Clone o repositório:**
     ```bash
     git clone [https://github.com/seu-usuario/nome-do-seu-repositorio.git](https://github.com/rafaelmarinatoassis/flask-lan-file-sharer.git)
-    cd nome-do-seu-repositorio
+    cd flask-lan-file-sharer
     ```
 
 2.  **(Opcional, mas recomendado) Crie e ative um ambiente virtual:**
@@ -79,7 +79,7 @@ Um servidor web simples construído com Flask para compartilhar arquivos facilme
 
 ⚠️ **A funcionalidade de apagar arquivos está ATIVA por padrão.** Qualquer pessoa com acesso à interface web poderá apagar arquivos permanentemente da pasta compartilhada. Utilize esta ferramenta com extrema cautela e apenas em redes 100% confiáveis e por sua conta e risco.
 
-## Como Contribuir (Opcional)
+## Como Contribuir
 
 Contribuições são bem-vindas! Se você tem ideias para melhorias ou encontrou algum bug:
 
@@ -89,10 +89,8 @@ Contribuições são bem-vindas! Se você tem ideias para melhorias ou encontrou
 4.  Faça o Push para a Branch (`git push origin feature/NovaFuncionalidade`).
 5.  Abra um Pull Request.
 
-## Licença (Opcional)
-
+## Licença
 Este projeto é distribuído sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
-*(Se você não adicionar um arquivo LICENSE, esta seção pode ser omitida ou você pode escolher outra licença.)*
 
 ---
 
