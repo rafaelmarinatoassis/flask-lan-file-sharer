@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Compartilhamento Moderno: {{ pasta_base }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 960px;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle;
+        }
+
+        .item-name {
+            word-break: break-all;
+        }
+
+        .actions form {
+            display: inline-block;
+            margin-left: 0.25rem;
+        }
+
+        .dir-icon {
+            color: #0d6efd;
+        }
+
+        .file-icon {
+            color: #6c757d;
+        }
+
+        .flash.error_fatal {
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+        }
+
+        .table-hover tbody tr:hover td,
+        .table-hover tbody tr:hover th {
+            background-color: #e9ecef;
+        }
+
+        /* Estilo para a barra de progresso e mensagem de status */
+        .upload-progress-container {
+            display: none;
+            /* Escondido por padrão */
+            margin-top: 15px;
+        }
+
+        .progress {
+            height: 25px;
+            font-size: 0.9rem;
+        }
+
+        #uploadStatusMessage {
+            margin-top: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-4 mb-5">
+        <header class="pb-3 mb-4 border-bottom">
+            <h1 class="h3"><i class="bi bi-folder2-open"></i> Pasta Compartilhada: <span class="fw-light">{{ pasta_base
+                    }}</span></h1>
+        </header>
+
+        <div class="alert alert-danger p-3 mb-4" role="alert">
+            <h4 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> ATENÇÃO MÁXIMA!</h4>
+            <p>A funcionalidade de <strong>apagar arquivos está ATIVA</strong>. Qualquer pessoa com acesso a esta página
+                pode apagar arquivos permanentemente.</p>
+            <hr>
+            <p class="mb-0">Use com extrema cautela e apenas em redes totalmente confiáveis.</p>
+        </div>
+
+        <!-- Container para mensagens de flash (que será preenchido pelo JS no caso de upload XHR) -->
+        <div id="flashMessageContainer">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            {% set category_class = 'info' %}
+            {% if category == 'success' %}{% set category_class = 'success' %}{% endif %}
+            {% if category == 'danger' or category == 'error' %}{% set category_class = 'danger' %}{% endif %}
+            {% if category == 'warning' %}{% set category_class = 'warning' %}{% endif %}
+
+            {% if category == 'error_fatal' %}
+            <div class="alert alert-danger fw-bold flash error_fatal" role="alert">
+                <i class="bi bi-x-octagon-fill"></i> {{ message }}
+            </div>
+            {% else %}
+            <div class="alert alert-{{ category_class }} alert-dismissible fade show flash {{ category }}" role="alert">
+                {% if category_class == 'success' %}<i class="bi bi-check-circle-fill"></i>
+                {% elif category_class == 'danger' %}<i class="bi bi-exclamation-triangle-fill"></i>
+                {% elif category_class == 'warning' %}<i class="bi bi-exclamation-circle-fill"></i>
+                {% else %}<i class="bi bi-info-circle-fill"></i>
+                {% endif %}
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
+
+
+        {% if show_content %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0"><i class="bi bi-cloud-arrow-up-fill"></i> Fazer Upload de Arquivo</h2>
+            </div>
+            <div class="card-body">
+                <!-- Formulário de Upload com ID para JS -->
+                <form id="uploadForm" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input class="form-control" type="file" name="file" id="fileInput" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="uploadButton"><i class="bi bi-upload"></i> Enviar
+                        Arquivo</button>
+                    <!-- BOTÃO DE CANCELAR ADICIONADO AQUI -->
+                    <button type="button" class="btn btn-warning ms-2" id="cancelUploadButton" style="display: none;"><i
+                            class="bi bi-x-circle"></i> Cancelar Envio</button>
+                </form>
+                <!-- Container da Barra de Progresso -->
+                <div class="upload-progress-container" id="uploadProgressContainer">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="uploadProgressBar"
+                            role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
+                            aria-valuemax="100">0%</div>
+                    </div>
+                    <div id="uploadStatusMessage" class="text-muted"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h2 class="h5 mb-0"><i class="bi bi-list-ul"></i> Conteúdo da Pasta</h2>
+            </div>
+            <div class="card-body p-0">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;"><span class="visually-hidden">Tipo</span></th>
+                                <th scope="col">Nome</th>
+                                <th scope="col" style="width: 15%;">Tamanho</th>
+                                <th scope="col" style="width: 20%;" class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    {% if item.is_dir %}
+                                    <i class="bi bi-folder-fill fs-4 dir-icon" title="Diretório"></i>
+                                    {% else %}
+                                    <i class="bi bi-file-earmark-text fs-4 file-icon" title="Arquivo"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="item-name">
+                                    {% if item.is_dir %}
+                                    {{ item.name }}
+                                    {% else %}
+                                    <a href="{{ url_for('download_file', filename=item.name) }}"
+                                        title="Baixar {{ item.name }}">{{ item.name }}</a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.size }}</td>
+                                <td class="actions text-end">
+                                    {% if not item.is_dir %}
+                                    <a href="{{ url_for('download_file', filename=item.name) }}"
+                                        class="btn btn-sm btn-outline-success" title="Baixar {{ item.name }}">
+                                        <i class="bi bi-download"></i> <span class="d-none d-md-inline">Baixar</span>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                        data-bs-target="#confirmDeleteModal" data-filename="{{ item.name }}"
+                                        title="Apagar {{ item.name }}">
+                                        <i class="bi bi-trash-fill"></i> <span class="d-none d-md-inline">Apagar</span>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-body text-center">
+                    <p class="text-muted"><i class="bi bi-inbox fs-1"></i></p>
+                    <p class="lead">A pasta está vazia.</p>
+                    <p>Use o formulário acima para enviar arquivos.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel"><i class="bi bi-exclamation-triangle-fill"></i>
+                        Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você tem certeza que deseja apagar o arquivo <strong id="filenameToDelete"></strong>?</p>
+                    <p class="text-danger fw-bold">Esta ação é irreversível e o arquivo será apagado permanentemente.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i
+                            class="bi bi-x-circle"></i> Cancelar</button>
+                    <form id="deleteForm" method="POST" action="" style="display: inline;">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash-fill"></i> Apagar
+                            Permanentemente</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+
+    <script>
+        // Script para o Modal de Confirmação de Exclusão
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        if (confirmDeleteModal) {
+            confirmDeleteModal.addEventListener('show.bs.modal', event => {
+                const button = event.relatedTarget;
+                const filename = button.getAttribute('data-filename');
+                const modalFilenameElement = confirmDeleteModal.querySelector('#filenameToDelete');
+                const deleteForm = confirmDeleteModal.querySelector('#deleteForm');
+                modalFilenameElement.textContent = filename;
+                deleteForm.action = `/delete/${encodeURIComponent(filename)}`;
+            });
+        }
+
+        // Script para Auto-Dismiss de Alertas não-fatais
+        function autoDismissAlerts() {
+            const alertsToDismiss = document.querySelectorAll('#flashMessageContainer .alert.alert-dismissible.fade.show.flash:not(.error_fatal)');
+            alertsToDismiss.forEach(alertElement => {
+                const bsAlert = new bootstrap.Alert(alertElement);
+                setTimeout(() => {
+                    if (alertElement.classList.contains('show')) {
+                        bsAlert.close();
+                    }
+                }, 5000);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', autoDismissAlerts);
+
+
+        // --- SCRIPT PARA UPLOAD COM PROGRESSO E CANCELAMENTO ---
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const cancelButton = document.getElementById('cancelUploadButton');
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgressBar');
+        const uploadStatusMessage = document.getElementById('uploadStatusMessage');
+        const flashContainer = document.getElementById('flashMessageContainer');
+
+        let currentXhr = null; // Variável para armazenar o XHR atual
+
+        function displayFlashMessage(message, category) {
+            let category_class = 'info';
+            let icon_class = 'bi-info-circle-fill';
+            if (category === 'success') { category_class = 'success'; icon_class = 'bi-check-circle-fill'; }
+            if (category === 'danger' || category === 'error') { category_class = 'danger'; icon_class = 'bi-exclamation-triangle-fill'; }
+            if (category === 'warning') { category_class = 'warning'; icon_class = 'bi-exclamation-circle-fill'; }
+
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${category_class} alert-dismissible fade show flash ${category}`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.innerHTML = `
+            <i class="bi ${icon_class}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+            flashContainer.appendChild(alertDiv);
+            autoDismissAlerts(); // Re-aplica o auto-dismiss para a nova mensagem
+        }
+
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', function (event) {
+                event.preventDefault(); // Previne o envio padrão
+
+                const file = fileInput.files[0];
+                if (!file) {
+                    displayFlashMessage('Nenhum arquivo selecionado!', 'danger');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Mostra a barra de progresso e reseta
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressBar.classList.remove('bg-success', 'bg-danger', 'bg-warning');
+                progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+                uploadStatusMessage.textContent = `Enviando ${file.name}...`;
+                uploadButton.disabled = true;
+                cancelButton.style.display = 'inline-block'; // Mostra o botão de cancelar
+                cancelButton.disabled = false;
+
+                currentXhr = new XMLHttpRequest(); // Armazena o XHR
+
+                currentXhr.upload.addEventListener('progress', function (e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percentComplete + '%';
+                        progressBar.textContent = percentComplete + '%';
+                    }
+                });
+
+                currentXhr.addEventListener('load', function () {
+                    uploadButton.disabled = false;
+                    cancelButton.style.display = 'none'; // Esconde o botão de cancelar
+                    cancelButton.disabled = true;
+                    progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    currentXhr = null; // Limpa o XHR
+
+                    let response;
+                    try {
+                        response = JSON.parse(this.responseText); // Usar this.responseText
+                    } catch (e) {
+                        response = { success: false, message: 'Erro de resposta do servidor. Resposta não é JSON.' };
+                    }
+
+                    if (this.status >= 200 && this.status < 300 && response.success) {
+                        progressBar.classList.add('bg-success');
+                        progressBar.textContent = 'Completo!';
+                        uploadStatusMessage.textContent = response.message;
+                        displayFlashMessage(response.message, 'success');
+                        setTimeout(() => { window.location.reload(); }, 1500);
+                    } else {
+                        progressBar.classList.add('bg-danger');
+                        progressBar.textContent = 'Falha!';
+                        const errorMessage = response.message || `Erro ${this.status}: ${this.statusText}`;
+                        uploadStatusMessage.textContent = `Falha no upload: ${errorMessage}`;
+                        displayFlashMessage(`Falha no upload: ${errorMessage}`, 'danger');
+                        // Se o erro for 413 (Payload Too Large), mostre uma mensagem específica
+                        if (this.status === 413) {
+                            uploadStatusMessage.textContent = `Falha no upload: ${response.message || 'Arquivo excede o limite de tamanho permitido.'}`;
+                            displayFlashMessage(`${response.message || 'Arquivo excede o limite de tamanho permitido.'}`, 'danger');
+                        }
+                    }
+                });
+
+                currentXhr.addEventListener('error', function () {
+                    uploadButton.disabled = false;
+                    cancelButton.style.display = 'none';
+                    cancelButton.disabled = true;
+                    progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    progressBar.classList.add('bg-danger');
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = 'Erro de Rede!';
+                    uploadStatusMessage.textContent = 'Erro de rede ou o servidor não pôde ser alcançado.';
+                    displayFlashMessage('Erro de rede durante o upload.', 'danger');
+                    currentXhr = null;
+                });
+
+                currentXhr.addEventListener('abort', function () {
+                    uploadButton.disabled = false;
+                    cancelButton.style.display = 'none';
+                    cancelButton.disabled = true;
+                    progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    progressBar.classList.add('bg-warning'); // Cor para cancelado
+                    // progressBar.style.width = '100%'; // Não necessariamente 100% se cancelado
+                    progressBar.textContent = 'Cancelado!';
+                    uploadStatusMessage.textContent = 'Upload cancelado.';
+                    displayFlashMessage('Upload cancelado pelo usuário.', 'warning'); // Usar warning
+                    currentXhr = null;
+                    // ATUALIZAR A PÁGINA APÓS 2 SEGUNDOS
+                    setTimeout(() => { window.location.reload(); }, 2000);
+                });
+
+                // A rota de upload é a raiz ('/') com método POST
+                currentXhr.open('POST', '{{ url_for("index") }}', true);
+                currentXhr.send(formData);
+            });
+
+            // Event listener para o botão de cancelar
+            if (cancelButton) {
+                cancelButton.addEventListener('click', function () {
+                    if (currentXhr) {
+                        currentXhr.abort(); // Chama o abort no XHR atual
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>
