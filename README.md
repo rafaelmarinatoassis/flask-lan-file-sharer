@@ -2,8 +2,6 @@
 
 Um servidor web simples construído com Flask para compartilhar arquivos facilmente em sua rede local (LAN). Permite fazer upload, download e apagar arquivos através de uma interface web amigável.
 
-![Captura de Tela da Aplicação (Opcional - adicione uma imagem aqui se tiver uma)](link_para_sua_imagem_se_tiver.png)
-
 ## Funcionalidades Principais
 
 *   **Interface Web Intuitiva:** Navegue, envie e gerencie arquivos pelo seu navegador.
